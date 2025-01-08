@@ -7,12 +7,17 @@ export default {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    colors: {
+      bgPrimary: "var(--bg-primary)",
+      bgSecondary: "var(--bg-secondary)",
+      red: "red",
+    },
     extend: {
-      colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+      padding: {
+        general: "1rem",
       },
     },
   },
+
   plugins: [],
 } satisfies Config;
