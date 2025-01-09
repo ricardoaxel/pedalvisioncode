@@ -6,13 +6,14 @@ export default function KonvaComponent() {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null); // Specify Konva.Stage type
   const imageRef = useRef<Konva.Image | null>(null); // Specify Konva.Image type
+  const imageRef2 = useRef<Konva.Image | null>(null); // Specify Konva.Image type
+
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
   });
 
-  // Track the initial position of the stage
-  const initialStagePosition = useRef({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1); // Scale factor for zooming
 
   // Load the image
   useEffect(() => {
@@ -23,10 +24,9 @@ export default function KonvaComponent() {
     };
 
     const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setWindowSize({ width, height });
     };
 
     // Add event listener for window resize
@@ -38,49 +38,64 @@ export default function KonvaComponent() {
     };
   }, []);
 
+  //    TODO: AFTER TRYING DIFFERENT METHODS, the best approach its to use the position that the elements have
+  //    this will be different from the Stage visible area dimensions (the only purpose of these it's to
+  //   to stablish the visible area of the canvas but its content can have more dimensions inside it)
+  // The iamge position will be saved based on thi, we onluy have to see the scalar propertires relation between images al real relation
+
+  const getImagePosition = () => {
+    if (imageRef.current) {
+      const xPosition = imageRef.current.x(); // Get the x position
+      const yPosition = imageRef.current.y(); // Get the y position
+      console.log(`Image Position: x = ${xPosition}, y = ${yPosition}`);
+    }
+  };
+
+  const getImagePosition2 = () => {
+    if (imageRef2.current) {
+      const xPosition = imageRef2.current.x(); // Get the x position
+      const yPosition = imageRef2.current.y(); // Get the y position
+      console.log(`Image2 Position: x = ${xPosition}, y = ${yPosition}`);
+    }
+  };
+
+  // Handle zooming on wheel event
+  const handleWheel = (e: React.WheelEvent) => {
+    // e.preventDefault(); // Prevent default scrolling behavior
+
+    const newScale = e.deltaY > 0 ? scale * 1.1 : scale / 1.1; // Zoom in or out
+    setScale(newScale); // Update scale state
+
+    if (stageRef.current) {
+      // Get the mouse position in the stage
+      const pointer = stageRef.current.getPointerPosition();
+      if (pointer) {
+        stageRef.current.scale({ x: newScale, y: newScale });
+
+        const mousePointTo = {
+          x: (pointer.x - stageRef.current.x()) / stageRef.current.scaleX(),
+          y: (pointer.y - stageRef.current.y()) / stageRef.current.scaleY(),
+        };
+
+        stageRef.current.position({
+          x: pointer.x - mousePointTo.x * stageRef.current.scaleX(),
+          y: pointer.y - mousePointTo.y * stageRef.current.scaleY(),
+        });
+
+        stageRef.current.batchDraw();
+      }
+    }
+  };
+
   return (
-    <div className="bg-bgSecondary flex-1">
+    <div className="bg-bgSecondary flex-1" onWheel={handleWheel}>
       <Stage
         width={windowSize.width}
         height={windowSize.height}
         draggable
-        onDragStart={() => {
-          // Store the initial position when dragging starts
-          if (stageRef.current) {
-            initialStagePosition.current = {
-              x: stageRef.current.x(),
-              y: stageRef.current.y(),
-            };
-          }
-        }}
-        onDragMove={(e) => {
-          const position = e.target.position(); // Get new position
-          // console.log(position); // Optional: Log the position if needed
-        }}
         ref={stageRef}
-        dragBoundFunc={(pos) => {
-          // Restrict the stage movement within -200 to +200 pixels from the initial position
-          if (stageRef.current) {
-            const stageWidth = stageRef.current.width();
-            const stageHeight = stageRef.current.height();
-
-            const limit = 200;
-
-            const x = Math.min(
-              Math.max(pos.x, -stageWidth * 0.5), // Keep x within -200 to +200 of the initial position
-              stageWidth * 0.5 // Keep x within +200 of the initial position
-            );
-
-            const y = Math.min(
-              Math.max(pos.y, -stageHeight * 0.5), // Keep y within -200 to +200 of the initial position
-              stageHeight * 0.5 // Keep y within +200 of the initial position
-            );
-
-            return { x, y }; // Return the new position
-          }
-
-          return pos; // Return the position unchanged if stageRef.current is null
-        }}
+        scaleX={scale}
+        scaleY={scale}
       >
         <Layer>
           {image && (
@@ -91,29 +106,22 @@ export default function KonvaComponent() {
               draggable
               ref={imageRef}
               alt=""
-              // dragBoundFunc to restrict the movement inside the Stage area
-              dragBoundFunc={(pos) => {
-                // Check if stageRef.current is not null
-                if (stageRef.current) {
-                  const stageWidth = stageRef.current.width();
-                  const stageHeight = stageRef.current.height();
-                  const imageWidth = imageRef.current?.width() ?? 0;
-                  const imageHeight = imageRef.current?.height() ?? 0;
+              onDragEnd={() => {
+                getImagePosition();
+              }}
+            />
+          )}
 
-                  // Limit the position to the stage area
-                  const x = Math.min(
-                    Math.max(pos.x, 0), // Keep x within the left boundary (0)
-                    stageWidth - imageWidth // Keep x within the right boundary
-                  );
-                  const y = Math.min(
-                    Math.max(pos.y, 0), // Keep y within the top boundary (0)
-                    stageHeight - imageHeight // Keep y within the bottom boundary
-                  );
-
-                  return { x, y }; // Return the new position
-                }
-
-                return pos; // Return the position unchanged if stageRef.current is null
+          {image && (
+            <KonvaImage
+              image={image}
+              x={100}
+              y={100}
+              draggable
+              ref={imageRef2}
+              alt=""
+              onDragEnd={() => {
+                getImagePosition2();
               }}
             />
           )}
